@@ -81,7 +81,6 @@ DATABASES = {
 
 
 print("===================database", DATABASES)
-print("===========111111111")
 
 
 STATIC_URL = '/static/'
