@@ -68,28 +68,16 @@ STORAGES = {
 CONNECTION = os.environ.get('AZURE_POSTGRESQL_CONNECTIONSTRING')
 CONNECTION_STR = {pair.split('=')[0]:pair.split('=')[1] for pair in CONNECTION.split(' ')}
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': CONNECTION_STR['dbname'],
-#         'HOST': CONNECTION_STR['host'],
-#         'USER': CONNECTION_STR['user'],
-#         'PASSWORD': CONNECTION_STR['password'],
-#         'PORT': CONNECTION_STR['port']
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'HOST': "django-postgresql.postgres.database.azure.com",
-        'USER': "AdminAlpha",
-        'PASSWORD': "Alphaaifund@123",
-        'PORT': 5432
+        'NAME': CONNECTION_STR['dbname'],
+        'HOST': CONNECTION_STR['host'],
+        'USER': CONNECTION_STR['user'],
+        'PASSWORD': CONNECTION_STR['password'],
+        'PORT': CONNECTION_STR['port']
     }
 }
-
 
 print("===================database", DATABASES)
 

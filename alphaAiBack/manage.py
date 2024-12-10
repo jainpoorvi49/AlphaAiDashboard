@@ -11,7 +11,6 @@ def main():
     """Run administrative tasks."""
     settings_module = 'alphaAiBack.deployment' if 'WEBSITE_HOSTNAME' in os.environ else 'alphaAiBack.settings'
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
-    print("========manage.py", settings_module)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
