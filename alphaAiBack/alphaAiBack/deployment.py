@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-ALLOWED_HOSTS = [os.environ['WEBSITE_HOSTNAME']]
-CSRF_TRUSTED_ORIGINS = ['https://' + os.environ['WEBSITE_HOSTNAME']]
+ALLOWED_HOSTS = ['django-dashboard-aea0gjf5e2argedm.canadacentral-01.azurewebsites.net']
+CSRF_TRUSTED_ORIGINS = ['https://django-dashboard-aea0gjf5e2argedm.canadacentral-01.azurewebsites.net']]
 DEBUG = False
 SECRET_KEY = os.environ['MY_SECRET_KEY']
 
