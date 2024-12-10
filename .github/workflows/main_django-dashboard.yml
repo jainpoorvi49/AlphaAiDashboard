@@ -66,4 +66,4 @@ jobs:
         with:
           app-name: 'django-dashboard'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_A782970AE983459698A5F520679287CF }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_427521447AD54A84A3BC8E90F8000FDE }}
