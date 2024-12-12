@@ -95,10 +95,9 @@ def get_all_clients_data(request):
     """
     # Get the endpoint URLs from the environment variables
     endpoints = [
-        # os.getenv("URL1"), 
-        # os.getenv("URL2"), 
-       "https://django-backend1.azurewebsites.net/user/user1",
-       "https://django-backend1.azurewebsites.net/user/user2"
+        os.getenv("URL1"),  # Example: http://127.0.0.1:8000/user/user1
+        os.getenv("URL2"),  # Example: http://127.0.0.1:8000/user/user2
+        # Add more URLs as needed
     ]
     
     # Check if URLs are valid
