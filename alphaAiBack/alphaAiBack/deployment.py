@@ -45,9 +45,9 @@ MIDDLEWARE = [
 ]
 
 
-# CORS_ALLOWED_ORIGINS = [
-#     
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "https://alpha-ai-frontend.vercel.app"
+]
 
 
 STORAGES = {
