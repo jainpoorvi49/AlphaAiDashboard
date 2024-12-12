@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation"; // Use next/navigation for routing
 import styles from "./auth.module.css"; // Import styles
+import AxiosInstance from "../axios/api"; // Import Axios instance
 
 const LoginPage = () => {
     const [userId, setUserId] = useState("");
@@ -30,26 +31,31 @@ const LoginPage = () => {
 
         try {
             // Send POST request to the backend API for authentication
-            const response = await fetch("http://localhost:8000/user/login/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ username: userId, password }),
+            const response = await AxiosInstance.post("user/login/", {
+                username: userId,
+                password,
             });
 
-            const data = await response.json();
+            // Access the data directly
+            const data = response.data;
 
-            if (response.ok) {
-                // localStorage.setItem("token", data.token);
+            if (response.status === 200) {
+                // Save tokens in local storage
                 localStorage.setItem("access_token", data.access_token);
                 localStorage.setItem("refresh_token", data.refresh_token);
+                
+                // Redirect to the profile page
                 router.push("/profile");
             } else {
                 setError(data.error || "Invalid credentials");
             }
         } catch (err) {
-            setError("An error occurred during login. Please try again.");
+            // Handle backend error response or network issue
+            console.error("Error response:", err.response);
+            console.error("Error details:", err.message);
+            setError(
+                err.response?.data?.error || "An error occurred during login. Please try again."
+            );
         } finally {
             // Reset loading state
             setLoading(false);

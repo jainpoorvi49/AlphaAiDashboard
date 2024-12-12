@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import styles from './addUser.module.css';
+import AxiosInstance from "../axios/api";
 
 const AddUser = () => {
   // State to store the form data
@@ -27,21 +28,14 @@ const AddUser = () => {
       // Retrieve token from localStorage
       const token = localStorage.getItem("access_token");
 
-      const response = await fetch('http://localhost:8000/user/add/', {
-        method: 'POST',
+      const response = await AxiosInstance.post('/user/add/', newUserData, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(newUserData),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to add user');
-      }
-
-      const result = await response.json();
       setSuccess('User added successfully!');
+      
       // Reset form fields after successful submission
       setUserId('');
       setPassword('');

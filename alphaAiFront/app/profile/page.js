@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./profile.module.css";
+import AxiosInstance from "../axios/api";
 
 const Profile = () => {
   const router = useRouter();
@@ -22,37 +23,36 @@ const Profile = () => {
       }
 
       try {
-        const response = await fetch("http://localhost:8000//user/data/", {
-          method: "GET",
+        const response = await AxiosInstance.get("user/data/", {
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
-        if (response.status === 401) {
+        if (response.status === 200) {
+          const data = response.data;
+          if (data && data.data && Array.isArray(data.data)) {
+            setUserData(data.data);
+          } else {
+            setError("Unexpected data format received.");
+          }
+        } else {
+          setError(`Unexpected response status: ${response.status}`);
+        }
+      } catch (err) {
+        if (err.response && err.response.status === 401) {
           setError("Unauthorized access. Redirecting to login...");
           localStorage.removeItem("access_token");
           router.push("/login");
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch user data");
-        }
-
-        const data = await response.json();
-        if (data && data.data && Array.isArray(data.data)) {
-          setUserData(data.data);
         } else {
-          setError("Unexpected data format received.");
+          setError("An error occurred while fetching user data.");
+          console.error(err); // Log error for debugging
         }
-      } catch (err) {
-        setError("An error occurred while fetching user data.");
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, [router]);
 
