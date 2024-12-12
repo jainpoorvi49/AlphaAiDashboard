@@ -93,45 +93,77 @@ def get_all_clients_data(request):
     """
     Master API: Collect and return data from all 7 APIs.
     """
-    # Get the endpoint URLs from the environment variables
+    # Define the endpoint URLs
     endpoints = [
-        # os.getenv("URL1"),  # Example: http://127.0.0.1:8000/user/user1
-        # os.getenv("URL2"),  # Example: http://127.0.0.1:8000/user/user2
-        # Add more URLs as needed
         "https://django-backend1.azurewebsites.net/user/user1",
         "https://django-backend1.azurewebsites.net/user/user2"
     ]
-    
-    # Check if URLs are valid
-    if not all(endpoints):
-        return Response({"status": "error", "message": "One or more URLs are missing in the environment variables."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    data = []
-    try:
-        # Make HTTP requests to the listed endpoints
-        with httpx.Client(follow_redirects=True, verify=False) as client:  # Disable SSL verification
-            for endpoint in endpoints:
-                print(f"Fetching data from: {endpoint}")  # Debugging URL
-                response = client.get(endpoint)
-                print(f"Status Code: {response.status_code}")
-                if response.status_code != 200:
-                    print(f"Error response: {response.text}")
-                response.raise_for_status()  # Raise exception for HTTP errors
-                client_data = response.json()
 
-                data.append({
-                    "user_id": client_data.get("user_id"),
-                    "margin": client_data.get("margin", "No data available"),
-                    "used_margin": client_data.get("used_margin", "No data available"),
-                    "capital": client_data.get("capital", "No data available"),
-                    "broker_name": client_data.get("broker_name", "No data available"),
-                    "return_percentage": client_data.get("return_percentage", "No data available"),
-                    "number_of_orders_pinched": client_data.get("number_of_orders_pinched", "No data available"),
-                    "last_order_time": client_data.get("last_order_time", "No data available"),
-                    "unfilled_buy_limit_option": client_data.get("unfilled_buy_limit_option", "No data available"),
-                    "running_m2m": client_data.get("running_m2m", "No data available"),
-                })
+    # Ensure all endpoints are valid
+    if not all(endpoints):
+        return Response(
+            {"status": "error", "message": "One or more URLs are missing in the configuration."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Data collection container
+    data = []
+    errors = []
+
+    try:
+        # HTTP client with timeout and SSL verification disabled
+        with httpx.Client(follow_redirects=True, verify=False, timeout=30) as client:  # Set timeout to 15 seconds
+            for endpoint in endpoints:
+                try:
+                    print(f"Fetching data from: {endpoint}")
+                    response = client.get(endpoint)
+                    
+                    # Log the response status code for debugging
+                    print(f"Status Code: {response.status_code}")
+
+                    # Check for HTTP errors
+                    response.raise_for_status()
+                    client_data = response.json()
+
+                    # Append the client data
+                    data.append({
+                        "user_id": client_data.get("user_id"),
+                        "margin": client_data.get("margin", "No data available"),
+                        "used_margin": client_data.get("used_margin", "No data available"),
+                        "capital": client_data.get("capital", "No data available"),
+                        "broker_name": client_data.get("broker_name", "No data available"),
+                        "return_percentage": client_data.get("return_percentage", "No data available"),
+                        "number_of_orders_pinched": client_data.get("number_of_orders_pinched", "No data available"),
+                        "last_order_time": client_data.get("last_order_time", "No data available"),
+                        "unfilled_buy_limit_option": client_data.get("unfilled_buy_limit_option", "No data available"),
+                        "running_m2m": client_data.get("running_m2m", "No data available"),
+                    })
+
+                except httpx.HTTPStatusError as http_err:
+                    print(f"HTTP error for {endpoint}: {str(http_err)}")
+                    errors.append({"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"})
+                except httpx.RequestError as req_err:
+                    print(f"Request error for {endpoint}: {str(req_err)}")
+                    errors.append({"endpoint": endpoint, "error": "Request failed or timed out"})
+                except ValueError as val_err:
+                    print(f"JSON parsing error for {endpoint}: {str(val_err)}")
+                    errors.append({"endpoint": endpoint, "error": "Invalid JSON response"})
+                except Exception as e:
+                    print(f"Unexpected error for {endpoint}: {str(e)}")
+                    errors.append({"endpoint": endpoint, "error": str(e)})
+
     except Exception as e:
-        return Response({"status": "error", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        print(f"Critical error: {str(e)}")
+        return Response(
+            {"status": "error", "message": "A critical error occurred while fetching data.", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    # Final response
+    if errors:
+        return Response(
+            {"status": "partial_success", "message": "Some endpoints failed.", "data": data, "errors": errors},
+            status=status.HTTP_207_MULTI_STATUS
+        )
 
     return Response({"status": "success", "data": data}, status=status.HTTP_200_OK)
