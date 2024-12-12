@@ -1,20 +1,17 @@
 "use client";
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import LoginPage from "./auth/page";
-import ProfilePage from "./profile/page"; // Import the Profile page
-import AddUser from "./addUser/page";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-const App = () => {
-    return (
-        <Router>
-            <Routes>
-                <Route path="/" element={<LoginPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/addUser" element={<AddUser />} />
-            </Routes>
-        </Router>
-    );
+const Home = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect the user to the login page
+    router.push("/auth");
+  }, [router]);
+
+  return null; // No content is displayed on this page
 };
 
-export default App;
+export default Home;
