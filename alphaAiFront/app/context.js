@@ -1,4 +1,5 @@
-"use client";
+// "use client"; ensures this component is treated as client-side only
+"use client"; 
 import React, { createContext, useState } from "react";
 
 export const DataContext = createContext(null);
