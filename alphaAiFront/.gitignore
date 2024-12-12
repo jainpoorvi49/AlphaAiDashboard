@@ -33,4 +33,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-package-lock.json
+# Node modules directory
+/node_modules/
+
+# Logs
+*.log
+
+# macOS-specific system files
+.DS_Store
+
+# Ignore the build folder
+/build/
+
+# Ignore files related to Android
+android/
+
+# Ignore iOS-related files
+ios/
+
+/package-lock.json
