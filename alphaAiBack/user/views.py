@@ -45,10 +45,11 @@ def create_new_user(request):
     
     
 
+
 @api_view(['GET'])
 def user1(request):
     try:
-    
+        # Sample client data for user 1
         client_data = {
             "user_id": 105,
             "margin": "₹20",
@@ -62,21 +63,27 @@ def user1(request):
             "running_m2m": "No data available"
         }
 
-        # Append the client data as a new dictionary to the list
-        data = {
-            "user_id": client_data.get("user_id"),
-            "margin": client_data.get("margin", "No data available"),
-            "used_margin": client_data.get("used_margin", "No data available"),
-            "capital": client_data.get("capital", "No data available"),
-            "broker_name": client_data.get("broker_name", "No data available"),
-            "return_percentage": client_data.get("return_percentage", "No data available"),
-            "number_of_orders_pinched": client_data.get("number_of_orders_pinched", "No data available"),
-            "last_order_time": client_data.get("last_order_time", "No data available"),
-            "unfilled_buy_limit_option": client_data.get("unfilled_buy_limit_option", "No data available"),
-            "running_m2m": client_data.get("running_m2m", "No data available"),
-        }
+        # Prepare the data list with both users' information
+        data = [
+            {
+                "user_id": client_data.get("user_id"),
+                "margin": client_data.get("margin", "No data available"),
+                "used_margin": client_data.get("used_margin", "No data available"),
+                "capital": client_data.get("capital", "No data available"),
+                "broker_name": client_data.get("broker_name", "No data available"),
+                "return_percentage": client_data.get("return_percentage", "No data available"),
+                "number_of_orders_pinched": client_data.get("number_of_orders_pinched", "No data available"),
+                "last_order_time": client_data.get("last_order_time", "No data available"),
+                "unfilled_buy_limit_option": client_data.get("unfilled_buy_limit_option", "No data available"),
+                "running_m2m": client_data.get("running_m2m", "No data available"),
+            },
+        ]
 
-        return Response(data, status=status.HTTP_200_OK)
+        # Return the final response with 'status' and 'data' keys
+        return Response({
+            "status": "success",
+            "data": data
+        }, status=status.HTTP_200_OK)
 
     except Exception as e:
         # Return an error response in case of an exception
