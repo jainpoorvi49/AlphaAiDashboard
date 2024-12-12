@@ -24,23 +24,34 @@ jobs:
 
       - name: Create and start virtual environment
         run: |
+          cd alphaAiBack
           python -m venv venv
           source venv/bin/activate
       
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          cd alphaAiBack
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Collect static files
+        run: |
+          cd alphaAiBack
+          python manage.py collectstatic --noinput    
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: |
+          cd alphaAiBack
+          zip release.zip ./* -r
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
           path: |
-            release.zip
+            alphaAiBack/release.zip
             !venv/
 
   deploy:
@@ -66,4 +77,4 @@ jobs:
         with:
           app-name: 'django-backend1'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_6DCD1ECBDB174F37AC3E4FAE6C3A2142 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_0F14404E8088492393F6E4DC906B23DA }}
