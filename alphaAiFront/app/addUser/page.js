@@ -1,48 +1,60 @@
-"use client"
+"use client";
 
 import React, { useState } from "react";
-import styles from './addUser.module.css';
+import styles from "./addUser.module.css";
 import AxiosInstance from "../axios/api";
 
 const AddUser = () => {
   // State to store the form data
-  const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [broker, setBroker] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [broker, setBroker] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Prepare the payload
     const newUserData = {
-      user_id: userId,
-      password: password,
-      mobile_number: mobile,
-      broker_name: broker,
+      user_id: userId.trim(),
+      password: password.trim(),
+      mobile_number: mobile.trim(),
+      broker_name: broker.trim(),
     };
 
     try {
       // Retrieve token from localStorage
       const token = localStorage.getItem("access_token");
 
-      const response = await AxiosInstance.post('/user/add/', newUserData, {
+      // Send the API request
+      const response = await AxiosInstance.post("/user/add/", newUserData, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json", // Ensure the correct content type
         },
       });
 
-      setSuccess('User added successfully!');
-      
-      // Reset form fields after successful submission
-      setUserId('');
-      setPassword('');
-      setMobile('');
-      setBroker('');
+      setSuccess("User created successfully!");
+      setError("");
+
+      // Reset form fields
+      setUserId("");
+      setPassword("");
+      setMobile("");
+      setBroker("");
     } catch (error) {
-      setError('Error: ' + error.message);
+      if (error.response) {
+        // Handle API response errors
+        console.error("API Error Response:", error.response.data);
+        setError("Error:Some thing went wrong");
+      } else {
+        // Handle general errors
+        console.error("Error Details:", error.message);
+        setError("Error: " + error.message);
+      }
     }
   };
 
