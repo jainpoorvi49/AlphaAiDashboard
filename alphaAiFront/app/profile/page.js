@@ -18,7 +18,7 @@ const Profile = () => {
 
       if (!token) {
         setError("No token found. Redirecting to login...");
-        router.push("/login");
+        router.push("/auth");
         return;
       }
 
