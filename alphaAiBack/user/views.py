@@ -6,9 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import LoginSerializer, NewUserSerializer
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import httpx
-import asyncio
 load_dotenv()
 
 
@@ -51,6 +49,49 @@ def create_new_user(request):
 @api_view(['GET'])
 def user1(request):
     try:
+        # Sample client data for user 1
+        client_data = {
+            "user_id": 105,
+            "margin": "₹20",
+            "used_margin": "No data available",
+            "capital": "₹80",
+            "broker_name": "Upstox",
+            "return_percentage": "No data available",
+            "number_of_orders_pinched": "No data available",
+            "last_order_time": "No data available",
+            "unfilled_buy_limit_option": "No data available",
+            "running_m2m": "No data available"
+        }
+
+        # Prepare the data list with both users' information
+        data = [
+            {
+                "user_id": client_data.get("user_id"),
+                "margin": client_data.get("margin", "No data available"),
+                "used_margin": client_data.get("used_margin", "No data available"),
+                "capital": client_data.get("capital", "No data available"),
+                "broker_name": client_data.get("broker_name", "No data available"),
+                "return_percentage": client_data.get("return_percentage", "No data available"),
+                "number_of_orders_pinched": client_data.get("number_of_orders_pinched", "No data available"),
+                "last_order_time": client_data.get("last_order_time", "No data available"),
+                "unfilled_buy_limit_option": client_data.get("unfilled_buy_limit_option", "No data available"),
+                "running_m2m": client_data.get("running_m2m", "No data available"),
+            },
+        ]
+
+        # Return the final response with 'status' and 'data' keys
+        return Response({
+            "status": "success",
+            "data": data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        # Return an error response in case of an exception
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def user2(request):
+    try:
         data ={
             "user_id": 106,
             "margin": "₹25",
@@ -68,82 +109,85 @@ def user1(request):
     except Exception as e:
         # Return an error response in case of an exception
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    
-@api_view(['GET'])
-def user2(request):
-    try:
-        data ={
-            "user_id": 105,
-            "margin": "₹250",
-            "used_margin": "No data available",
-            "capital": "₹100",
-            "broker_name": "Angel Broking",
-            "return_percentage": "No data available",
-            "number_of_orders_pinched": "No data available",
-            "last_order_time": "No data available",
-            "unfilled_buy_limit_option": "No data available",
-            "running_m2m": "No data available"
-        }
-        return Response(data, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        # Return an error response in case of an exception
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-
-# List of API endpoints
-API_ENDPOINTS = [
-    "https://django-backend1.azurewebsites.net/user/user2/",
-    "https://django-backend1.azurewebsites.net/user/user1/"
-]
-
-async def fetch_data(client, endpoint, retries=3):
-    for attempt in range(retries):
-        try:
-            response = await client.get(endpoint)
-            response.raise_for_status()
-            return {"endpoint": endpoint, "data": response.json()}
-        except (httpx.RequestError, httpx.HTTPStatusError) as err:
-            if attempt < retries - 1:
-                await asyncio.sleep(2 ** attempt)
-                continue
-            return {"endpoint": endpoint, "error": f"Request error: {str(err)}"}
-
-
-async def collect_all_data(batch_size=5):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
-        results = []
-        for i in range(0, len(API_ENDPOINTS), batch_size):
-            batch = API_ENDPOINTS[i:i + batch_size]
-            tasks = [fetch_data(client, endpoint) for endpoint in batch]
-            results.extend(await asyncio.gather(*tasks))
-        return results
 
 @api_view(['GET'])
 def get_all_clients_data(request):
-    try:
-        results = asyncio.run(collect_all_data())
-    except Exception as e:
+    """
+    Master API: Collect and return data from all 7 APIs.
+    """
+    # Define the endpoint URLs
+    endpoints = [
+        "https://django-backend1.azurewebsites.net/user/user1",
+        "https://django-backend1.azurewebsites.net/user/user2"
+    ]
+
+    # Ensure all endpoints are valid
+    if not all(endpoints):
         return Response(
-            {"status": "error", "message": "Critical error during data fetching.", "details": str(e)},
+            {"status": "error", "message": "One or more URLs are missing in the configuration."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Data collection container
+    data = []
+    errors = []
+
+    try:
+        # HTTP client with timeout and SSL verification disabled
+        with httpx.Client(follow_redirects=True, verify=False, timeout=30) as client:  # Set timeout to 15 seconds
+            for endpoint in endpoints:
+                try:
+                    print(f"Fetching data from: {endpoint}")
+                    response = client.get(endpoint)
+                    
+                    # Log the response status code for debugging
+                    print(f"Status Code: {response.status_code}")
+
+                    # Check for HTTP errors
+                    response.raise_for_status()
+                    client_data = response.json()
+
+                    # Append the client data
+                    data.append({
+                        "user_id": client_data.get("user_id"),
+                        "margin": client_data.get("margin", "No data available"),
+                        "used_margin": client_data.get("used_margin", "No data available"),
+                        "capital": client_data.get("capital", "No data available"),
+                        "broker_name": client_data.get("broker_name", "No data available"),
+                        "return_percentage": client_data.get("return_percentage", "No data available"),
+                        "number_of_orders_pinched": client_data.get("number_of_orders_pinched", "No data available"),
+                        "last_order_time": client_data.get("last_order_time", "No data available"),
+                        "unfilled_buy_limit_option": client_data.get("unfilled_buy_limit_option", "No data available"),
+                        "running_m2m": client_data.get("running_m2m", "No data available"),
+                    })
+
+                except httpx.HTTPStatusError as http_err:
+                    print(f"HTTP error for {endpoint}: {str(http_err)}")
+                    errors.append({"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"})
+                except httpx.RequestError as req_err:
+                    print(f"Request error for {endpoint}: {str(req_err)}")
+                    errors.append({"endpoint": endpoint, "error": "Request failed or timed out"})
+                except ValueError as val_err:
+                    print(f"JSON parsing error for {endpoint}: {str(val_err)}")
+                    errors.append({"endpoint": endpoint, "error": "Invalid JSON response"})
+                except Exception as e:
+                    print(f"Unexpected error for {endpoint}: {str(e)}")
+                    errors.append({"endpoint": endpoint, "error": str(e)})
+
+    except Exception as e:
+        print(f"Critical error: {str(e)}")
+        return Response(
+            {"status": "error", "message": "A critical error occurred while fetching data.", "details": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    successful_responses = [result["data"] for result in results if "data" in result]
-    failed_responses = [result for result in results if "error" in result]
-
-    if failed_responses:
+    # Final response
+    if errors:
         return Response(
-            {
-                "status": "partial_success",
-                "message": "Some endpoints failed.",
-                "data": successful_responses,
-                "errors": failed_responses,
-            },
-            status=status.HTTP_207_MULTI_STATUS,
+            {"status": "partial_success", "message": "Some endpoints failed.", "data": data, "errors": errors},
+            status=status.HTTP_207_MULTI_STATUS
         )
 
-    return Response({"status": "success", "data": successful_responses}, status=status.HTTP_200_OK)
+    return Response({"status": "success", "data": data}, status=status.HTTP_200_OK)
