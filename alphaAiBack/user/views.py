@@ -44,8 +44,6 @@ def create_new_user(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
-
-
 @api_view(['GET'])
 def user1(request):
     try:

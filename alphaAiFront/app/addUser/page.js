@@ -39,6 +39,9 @@ const AddUser = () => {
 
       setSuccess("User created successfully!");
       setError("");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000); 
 
       // Reset form fields
       setUserId("");
