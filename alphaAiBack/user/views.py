@@ -8,6 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import LoginSerializer, NewUserSerializer
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import httpx
+import asyncio
 load_dotenv()
 
 
@@ -92,51 +93,52 @@ def user2(request):
 
 
 
+
+# List of API endpoints
+API_ENDPOINTS = [
+    "https://django-backend1.azurewebsites.net/user/user2/",
+    "https://django-backend1.azurewebsites.net/user/user1/"
+]
+
+async def fetch_data(client, endpoint):
+    """
+    Fetch data from a single API endpoint asynchronously.
+    """
+    try:
+        response = await client.get(endpoint)
+        response.raise_for_status()
+        return {"endpoint": endpoint, "data": response.json()}
+    except httpx.RequestError as req_err:
+        return {"endpoint": endpoint, "error": f"Request error: {str(req_err)}"}
+    except httpx.HTTPStatusError as http_err:
+        return {"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"}
+    except Exception as e:
+        return {"endpoint": endpoint, "error": str(e)}
+
 @api_view(['GET'])
 def get_all_clients_data(request):
     """
-    Master API: Collect and return data from multiple APIs with load balancing and optimized concurrency.
+    Master API: Fetch and combine data from multiple APIs asynchronously.
     """
-    # Define the endpoint URLs (distribute across backend servers if needed)
-    endpoints = [
-        "https://django-backend1.azurewebsites.net/user/user2/",
-        "https://django-backend1.azurewebsites.net/user/user1/"
-    ]
+    async def collect_all_data():
+        # Create an async client
+        async with httpx.AsyncClient(timeout=15) as client:
+            # Fetch data from all endpoints concurrently
+            tasks = [fetch_data(client, endpoint) for endpoint in API_ENDPOINTS]
+            return await asyncio.gather(*tasks)
 
-    # Ensure all endpoints are valid
-    if not endpoints:
+    # Run the asynchronous data collection
+    try:
+        results = asyncio.run(collect_all_data())
+    except Exception as e:
         return Response(
-            {"status": "error", "message": "No endpoints configured."},
-            status=status.HTTP_400_BAD_REQUEST
+            {"status": "error", "message": "Critical error during data fetching.", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    # Container for successful and failed responses
-    successful_responses = []
-    failed_responses = []
-
-    # Function to fetch data from an API endpoint
-    def fetch_data(endpoint):
-        try:
-            with httpx.Client(follow_redirects=True, verify=False, timeout=15) as client:
-                response = client.get(endpoint)
-                response.raise_for_status()  # Raise error for HTTP status codes 4xx/5xx
-                return {"endpoint": endpoint, "data": response.json()}
-        except httpx.RequestError as req_err:
-            return {"endpoint": endpoint, "error": f"Request error: {str(req_err)}"}
-        except httpx.HTTPStatusError as http_err:
-            return {"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"}
-        except Exception as e:
-            return {"endpoint": endpoint, "error": str(e)}
-
-    # Use ThreadPoolExecutor for concurrent API calls
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_endpoint = {executor.submit(fetch_data, url): url for url in endpoints}
-        for future in as_completed(future_to_endpoint):
-            result = future.result()
-            if "data" in result:
-                successful_responses.append(result["data"])
-            else:
-                failed_responses.append(result)
+    # Separate successful and failed responses
+    successful_responses = [result["data"] for result in results if "data" in result]
+    failed_responses = [result for result in results if "error" in result]
 
     # Final response
     if failed_responses:
