@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import LoginSerializer, NewUserSerializer
 import httpx
+import asyncio
 load_dotenv()
 
 
@@ -96,7 +97,7 @@ def user2(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
-def get_all_clients_data(request):
+async def get_all_clients_data(request):
     endpoints = [
         "https://django-backend1.azurewebsites.net/user/user1",
         "https://django-backend1.azurewebsites.net/user/user2"
@@ -106,29 +107,15 @@ def get_all_clients_data(request):
     errors = []
 
     try:
-        with httpx.Client(follow_redirects=True, verify=False, timeout=30) as client:
+        # Use AsyncClient for asynchronous requests
+        async with httpx.AsyncClient(follow_redirects=True, verify=False, timeout=60) as client:
+            tasks = []
             for endpoint in endpoints:
-                try:
-                    print(f"Fetching data from: {endpoint}")
-                    response = client.get(endpoint)
-                    response.raise_for_status()
-                    client_data = response.json()
-
-                    # Extract and append 'data' key
-                    data.append(client_data.get("data", {}))
-
-                except httpx.HTTPStatusError as http_err:
-                    print(f"HTTP error for {endpoint}: {str(http_err)}")
-                    errors.append({"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"})
-                except httpx.RequestError as req_err:
-                    print(f"Request error for {endpoint}: {str(req_err)}")
-                    errors.append({"endpoint": endpoint, "error": "Request failed or timed out"})
-                except ValueError as val_err:
-                    print(f"JSON parsing error for {endpoint}: {str(val_err)}")
-                    errors.append({"endpoint": endpoint, "error": "Invalid JSON response"})
-                except Exception as e:
-                    print(f"Unexpected error for {endpoint}: {str(e)}")
-                    errors.append({"endpoint": endpoint, "error": str(e)})
+                # Create an asynchronous task for each endpoint
+                tasks.append(fetch_data(client, endpoint, data, errors))
+            
+            # Run all tasks concurrently
+            await asyncio.gather(*tasks)
 
     except Exception as e:
         print(f"Critical error: {str(e)}")
@@ -144,3 +131,27 @@ def get_all_clients_data(request):
         )
 
     return Response({"status": "success", "data": data}, status=status.HTTP_200_OK)
+
+# Helper function to handle each individual API call asynchronously
+async def fetch_data(client, endpoint, data, errors):
+    try:
+        print(f"Fetching data from: {endpoint}")
+        response = await client.get(endpoint)
+        response.raise_for_status()  # Raise an error for bad status codes
+        client_data = response.json()
+
+        # Extract and append 'data' key
+        data.append(client_data.get("data", {}))
+
+    except httpx.HTTPStatusError as http_err:
+        print(f"HTTP error for {endpoint}: {str(http_err)}")
+        errors.append({"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"})
+    except httpx.RequestError as req_err:
+        print(f"Request error for {endpoint}: {str(req_err)}")
+        errors.append({"endpoint": endpoint, "error": "Request failed or timed out"})
+    except ValueError as val_err:
+        print(f"JSON parsing error for {endpoint}: {str(val_err)}")
+        errors.append({"endpoint": endpoint, "error": "Invalid JSON response"})
+    except Exception as e:
+        print(f"Unexpected error for {endpoint}: {str(e)}")
+        errors.append({"endpoint": endpoint, "error": str(e)})
