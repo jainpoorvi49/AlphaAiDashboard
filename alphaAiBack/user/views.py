@@ -96,62 +96,45 @@ def user2(request):
         # Return an error response in case of an exception
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET'])
-async def get_all_clients_data(request):
-    endpoints = [
-        "https://django-backend1.azurewebsites.net/user/user1",
-        "https://django-backend1.azurewebsites.net/user/user2"
-    ]
 
-    data = []
+@api_view(['GET'])
+def master_api(request):
+    # Define the URLs of the two APIs
+    api_1_url = "https://django-backend1.azurewebsites.net/user/user1"
+    api_2_url = "https://django-backend1.azurewebsites.net/user/user2"
+
+    # Initialize data and error containers
+    combined_data = {}
     errors = []
 
+    # Call API 1
     try:
-        # Use AsyncClient for asynchronous requests
-        async with httpx.AsyncClient(follow_redirects=True, verify=False, timeout=60) as client:
-            tasks = []
-            for endpoint in endpoints:
-                # Create an asynchronous task for each endpoint
-                tasks.append(fetch_data(client, endpoint, data, errors))
-            
-            # Run all tasks concurrently
-            await asyncio.gather(*tasks)
-
+        with httpx.Client(follow_redirects=True, timeout=30) as client:
+            response_1 = client.get(api_1_url, verify=False)
+            response_1.raise_for_status()  # Raise error if the status is not 200
+            combined_data['api_1_data'] = response_1.json().get("data", {})
+    except httpx.HTTPStatusError as http_err:
+        errors.append({"api": api_1_url, "error": f"HTTP error: {http_err.response.status_code}"})
     except Exception as e:
-        print(f"Critical error: {str(e)}")
-        return Response(
-            {"status": "error", "message": "A critical error occurred while fetching data.", "details": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        errors.append({"api": api_1_url, "error": str(e)})
 
+    # Call API 2
+    try:
+        with httpx.Client(follow_redirects=True, timeout=30) as client:
+            response_2 = client.get(api_2_url, verify=False)
+            response_2.raise_for_status()  # Raise error if the status is not 200
+            combined_data['api_2_data'] = response_2.json().get("data", {})
+    except httpx.HTTPStatusError as http_err:
+        errors.append({"api": api_2_url, "error": f"HTTP error: {http_err.response.status_code}"})
+    except Exception as e:
+        errors.append({"api": api_2_url, "error": str(e)})
+
+    # If there are errors, return a partial success response
     if errors:
         return Response(
-            {"status": "partial_success", "message": "Some endpoints failed.", "data": data, "errors": errors},
-            status=status.HTTP_207_MULTI_STATUS
+            {"status": "partial_success", "message": "Some API calls failed.", "data": combined_data, "errors": errors},
+            status=207  # Multi-Status
         )
 
-    return Response({"status": "success", "data": data}, status=status.HTTP_200_OK)
-
-# Helper function to handle each individual API call asynchronously
-async def fetch_data(client, endpoint, data, errors):
-    try:
-        print(f"Fetching data from: {endpoint}")
-        response = await client.get(endpoint)
-        response.raise_for_status()  # Raise an error for bad status codes
-        client_data = response.json()
-
-        # Extract and append 'data' key
-        data.append(client_data.get("data", {}))
-
-    except httpx.HTTPStatusError as http_err:
-        print(f"HTTP error for {endpoint}: {str(http_err)}")
-        errors.append({"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"})
-    except httpx.RequestError as req_err:
-        print(f"Request error for {endpoint}: {str(req_err)}")
-        errors.append({"endpoint": endpoint, "error": "Request failed or timed out"})
-    except ValueError as val_err:
-        print(f"JSON parsing error for {endpoint}: {str(val_err)}")
-        errors.append({"endpoint": endpoint, "error": "Invalid JSON response"})
-    except Exception as e:
-        print(f"Unexpected error for {endpoint}: {str(e)}")
-        errors.append({"endpoint": endpoint, "error": str(e)})
+    # Return combined response if both calls succeed
+    return Response({"status": "success", "data": combined_data}, status=200)
