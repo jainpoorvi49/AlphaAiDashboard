@@ -100,34 +100,30 @@ API_ENDPOINTS = [
     "https://django-backend1.azurewebsites.net/user/user1/"
 ]
 
-async def fetch_data(client, endpoint):
-    """
-    Fetch data from a single API endpoint asynchronously.
-    """
-    try:
-        response = await client.get(endpoint)
-        response.raise_for_status()
-        return {"endpoint": endpoint, "data": response.json()}
-    except httpx.RequestError as req_err:
-        return {"endpoint": endpoint, "error": f"Request error: {str(req_err)}"}
-    except httpx.HTTPStatusError as http_err:
-        return {"endpoint": endpoint, "error": f"HTTP error: {http_err.response.status_code}"}
-    except Exception as e:
-        return {"endpoint": endpoint, "error": str(e)}
+async def fetch_data(client, endpoint, retries=3):
+    for attempt in range(retries):
+        try:
+            response = await client.get(endpoint)
+            response.raise_for_status()
+            return {"endpoint": endpoint, "data": response.json()}
+        except (httpx.RequestError, httpx.HTTPStatusError) as err:
+            if attempt < retries - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+            return {"endpoint": endpoint, "error": f"Request error: {str(err)}"}
+
+
+async def collect_all_data(batch_size=5):
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+        results = []
+        for i in range(0, len(API_ENDPOINTS), batch_size):
+            batch = API_ENDPOINTS[i:i + batch_size]
+            tasks = [fetch_data(client, endpoint) for endpoint in batch]
+            results.extend(await asyncio.gather(*tasks))
+        return results
 
 @api_view(['GET'])
 def get_all_clients_data(request):
-    """
-    Master API: Fetch and combine data from multiple APIs asynchronously.
-    """
-    async def collect_all_data():
-        # Create an async client
-        async with httpx.AsyncClient(timeout=15) as client:
-            # Fetch data from all endpoints concurrently
-            tasks = [fetch_data(client, endpoint) for endpoint in API_ENDPOINTS]
-            return await asyncio.gather(*tasks)
-
-    # Run the asynchronous data collection
     try:
         results = asyncio.run(collect_all_data())
     except Exception as e:
@@ -136,11 +132,9 @@ def get_all_clients_data(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    # Separate successful and failed responses
     successful_responses = [result["data"] for result in results if "data" in result]
     failed_responses = [result for result in results if "error" in result]
 
-    # Final response
     if failed_responses:
         return Response(
             {
