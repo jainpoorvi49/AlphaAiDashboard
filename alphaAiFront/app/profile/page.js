@@ -43,7 +43,7 @@ const Profile = () => {
         if (err.response && err.response.status === 401) {
           setError("Unauthorized access. Redirecting to login...");
           localStorage.removeItem("access_token");
-          router.push("/login");
+          router.push("/auth");
         } else {
           setError("An error occurred while fetching user data.");
           console.error(err); // Log error for debugging
@@ -74,14 +74,6 @@ const Profile = () => {
 
   return (
     <div className={styles.container}>
-      {/* <div className={styles.profilePicWrapper}>
-        <img
-          src="https://i.pinimg.com/236x/d0/9a/38/d09a38017048ec506b4564d5048352c1.jpg"
-          alt="Profile Picture"
-          className={styles.profilePic}
-        />
-      </div> */}
-
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
