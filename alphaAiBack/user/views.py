@@ -119,8 +119,8 @@ def get_all_clients_data(request):
 def fetch_data_for_all_clients(request):
     # Define the user IDs and directly specify the URLs
     urls = [
-        'http://localhost:8000/user/EC2853',
-        'http://localhost:8000/user/ZZ4237'
+        'django-backend1.azurewebsites.net/user/EC2853',
+        'django-backend1.azurewebsites.net/user/ZZ4237'
     ]
 
     # Use a ThreadPoolExecutor to fetch data concurrently from each URL
@@ -164,7 +164,6 @@ def fetch_data_for_client1(request):
 
     kite = KiteConnect(api_key=api_k)
     kite.set_access_token(access_token)
-    print("I am here ")
     
     try:
         margin_data = kite.margins(segment="equity")
@@ -243,8 +242,7 @@ def fetch_data_for_client2(request):
 
     kite = KiteConnect(api_key=api_k)
     kite.set_access_token(access_token)
-    print("I am here ")
-    
+   
     try:
         margin_data = kite.margins(segment="equity")
         available_margin = margin_data['net']
