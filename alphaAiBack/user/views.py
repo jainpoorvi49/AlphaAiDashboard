@@ -153,7 +153,11 @@ def fetch_data_for_all_clients(request):
 @api_view(['GET'])
 def fetch_data_for_client1(request):
     user_id = 'EC2853'
-    login = pd.read_csv('user\\data\\login.csv')
+    file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
+    login = pd.read_csv(file_path)
+    # login = pd.read_csv('user\\data\\login.csv')
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
     access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
     api_k_value = login.loc[login['login ID'] == user_id, 'api_k'].values
     api_s_value = login.loc[login['login ID'] == user_id, 'api_s'].values
