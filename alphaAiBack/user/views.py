@@ -356,10 +356,7 @@ def fetch_data_for_client3(request):
         "last_order_time": last_order_time,
         "unfilled_buy_limit_option": has_unfilled_buy_limit_option
     })
-    
-    
-    
-    
+        
 @api_view(['GET'])
 def fetch_data_for_client4(request):
     user_id = 'WP7621'
@@ -438,10 +435,7 @@ def fetch_data_for_client4(request):
         "last_order_time": last_order_time,
         "unfilled_buy_limit_option": has_unfilled_buy_limit_option
     })
-    
-    
-    
-    
+       
 @api_view(['GET'])
 def fetch_data_for_client5(request):
     user_id = 'SOE424'
@@ -521,10 +515,6 @@ def fetch_data_for_client5(request):
         "unfilled_buy_limit_option": has_unfilled_buy_limit_option
     })
     
-    
-    
-    
-    
 @api_view(['GET'])
 def fetch_data_for_client6(request):
     user_id = 'AU4419'
@@ -603,18 +593,17 @@ def fetch_data_for_client6(request):
         "last_order_time": last_order_time,
         "unfilled_buy_limit_option": has_unfilled_buy_limit_option
     })                
-    
-    
+      
 @api_view(['GET'])
 def fetch_data_for_all_clients(request):
     # Define the user IDs and directly specify the URLs
     urls = [
-        'django-backend1.azurewebsites.net/user/EC2853',
-        'django-backend1.azurewebsites.net/user/ZZ4237',
-        'django-backend1.azurewebsites.net/user/MI5008',
-        'django-backend1.azurewebsites.net/user/WP7621',
-        'django-backend1.azurewebsites.net/user/SOE424',
-        'django-backend1.azurewebsites.net/user/AU4419'
+        'https://django-backend1.azurewebsites.net/userEC2853',
+        'https://django-backend1.azurewebsites.net/user/ZZ4237',
+        'https://django-backend1.azurewebsites.net/user/MI5008',
+        'https://django-backend1.azurewebsites.net/user/WP7621',
+        'https://django-backend1.azurewebsites.net/user/SOE424',
+        'https://django-backend1.azurewebsites.net/user/AU4419'
     ]
 
     # Use a ThreadPoolExecutor to fetch data concurrently from each URL
