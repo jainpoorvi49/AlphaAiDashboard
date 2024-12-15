@@ -115,47 +115,13 @@ def get_all_clients_data(request):
         # Handle any exception and return a 500 response
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-@api_view(['GET'])
-def fetch_data_for_all_clients(request):
-    # Define the user IDs and directly specify the URLs
-    urls = [
-        'django-backend1.azurewebsites.net/user/EC2853',
-        'django-backend1.azurewebsites.net/user/ZZ4237'
-    ]
-
-    # Use a ThreadPoolExecutor to fetch data concurrently from each URL
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Directly pass the list of URLs in the executor.map() call
-        results = list(executor.map(requests.get, urls))
-
-    # Parse the JSON response from each request
-    client_data = [result.json() for result in results]
-
-    # Format the data in the specified structure
-    formatted_data = []
-    for client in client_data:
-        formatted_data.append({
-            "user_id": client.get("client_id"),
-            "margin": client.get("available_margin", "No data available"),
-            "used_margin": client.get("used_margin", "No data available"),
-            "capital": client.get("capital", "No data available"),
-            "broker_name": "Broker Name Placeholder",  # You can replace this with actual data if available
-            "return_percentage": client.get("return (%)", "No data available"),
-            "number_of_orders_pinched": client.get("number_of_orders_punched", "No data available"),
-            "last_order_time": client.get("last_order_time", "No data available"),
-            "unfilled_buy_limit_option": client.get("unfilled_buy_limit_option", "No data available"),
-            "running_m2m": "Running M2M Placeholder",  # Replace with actual data if available
-        })
-
-    # Return the formatted data as an array of objects
-    return Response(formatted_data)
 
 @api_view(['GET'])
 def fetch_data_for_client1(request):
     user_id = 'EC2853'
     file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
     login = pd.read_csv(file_path)
-    # login = pd.read_csv('user\\data\\login.csv')
+    
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
     access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
@@ -235,7 +201,8 @@ def fetch_data_for_client1(request):
 @api_view(['GET'])
 def fetch_data_for_client2(request):
     user_id = 'ZZ4237'
-    login = pd.read_csv('user\\data\\login.csv')
+    file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
+    login = pd.read_csv(file_path)
     access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
     api_k_value = login.loc[login['login ID'] == user_id, 'api_k'].values
     api_s_value = login.loc[login['login ID'] == user_id, 'api_s'].values
@@ -309,3 +276,371 @@ def fetch_data_for_client2(request):
         "last_order_time": last_order_time,
         "unfilled_buy_limit_option": has_unfilled_buy_limit_option
     })
+    
+    
+@api_view(['GET'])
+def fetch_data_for_client3(request):
+    user_id = 'MI5008'
+    file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
+    login = pd.read_csv(file_path)
+    access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
+    api_k_value = login.loc[login['login ID'] == user_id, 'api_k'].values
+    api_s_value = login.loc[login['login ID'] == user_id, 'api_s'].values
+    
+    api_k = api_k_value[0]
+    api_s = api_s_value[0]
+    access_token = access_token_value[0]
+
+    kite = KiteConnect(api_key=api_k)
+    kite.set_access_token(access_token)
+   
+    try:
+        margin_data = kite.margins(segment="equity")
+        available_margin = margin_data['net']
+        used_margin = margin_data['utilised']['exposure'] + margin_data['utilised']['span']
+        capital = int(available_margin + used_margin)
+        print(f"Available Margin: {available_margin}, Used Margin: {used_margin}, Capital: {capital}")
+        positions = kite.positions()
+        current_pnl = sum(
+            position['pnl'] for position in positions['net'] if position['tradingsymbol']
+        )
+
+        return_percentage = (current_pnl / capital) * 100 if capital != 0 else 0
+
+        orders = kite.orders()
+        number_of_orders_punched = len(orders)
+        last_order_time = max(
+            [order['order_timestamp'] for order in orders], default=None
+        )
+        last_order_time = last_order_time.strftime("%Y-%m-%d %H:%M:%S") if last_order_time else "No orders"
+
+        has_unfilled_buy_limit_option = any(
+            order['order_type'] == 'LIMIT' and
+            order['transaction_type'] == 'BUY' and
+            order['product'] == 'NRML' and
+            order['status'] not in ['COMPLETE', 'TRIGGER PENDING']
+            for order in orders
+        )
+
+        formatted_capital = format_indian_number(capital)
+        formatted_available_margin = format_indian_number(available_margin)
+        formatted_used_margin = format_indian_number(used_margin)
+        formatted_current_pnl = format_indian_number(current_pnl)
+
+        if number_of_orders_punched > 100:
+            subject = f"Alert: {user_id} has placed {number_of_orders_punched} orders"
+            body = (f"Client ID: {user_id}\n"
+                    f"Number of Orders Placed: {number_of_orders_punched}\n"
+                    f"Last Order Time: {last_order_time}\n"
+                    f"Available Margin: {formatted_available_margin}\n"
+                    f"Used Margin: {formatted_used_margin}\n"
+                    f"Current PnL: {formatted_current_pnl}\n")
+            # send_email(subject, body)
+
+    except Exception as e:
+        print(f"Error fetching data for client {user_id}: {e}")
+        formatted_capital = formatted_available_margin = formatted_used_margin = formatted_current_pnl = 0
+        number_of_orders_punched = return_percentage = 0
+        last_order_time = "Error fetching"
+        has_unfilled_buy_limit_option = False
+
+    # Return the dictionary wrapped in a Response
+    return Response({
+        "client_id": user_id,
+        "capital": formatted_capital,
+        "available_margin": formatted_available_margin,
+        "used_margin": formatted_used_margin,
+        "current_pnl": formatted_current_pnl,
+        "return (%)": round(return_percentage, 2),
+        "number_of_orders_punched": number_of_orders_punched,
+        "last_order_time": last_order_time,
+        "unfilled_buy_limit_option": has_unfilled_buy_limit_option
+    })
+    
+    
+    
+    
+@api_view(['GET'])
+def fetch_data_for_client4(request):
+    user_id = 'WP7621'
+    file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
+    login = pd.read_csv(file_path)
+    access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
+    api_k_value = login.loc[login['login ID'] == user_id, 'api_k'].values
+    api_s_value = login.loc[login['login ID'] == user_id, 'api_s'].values
+    
+    api_k = api_k_value[0]
+    api_s = api_s_value[0]
+    access_token = access_token_value[0]
+
+    kite = KiteConnect(api_key=api_k)
+    kite.set_access_token(access_token)
+   
+    try:
+        margin_data = kite.margins(segment="equity")
+        available_margin = margin_data['net']
+        used_margin = margin_data['utilised']['exposure'] + margin_data['utilised']['span']
+        capital = int(available_margin + used_margin)
+        print(f"Available Margin: {available_margin}, Used Margin: {used_margin}, Capital: {capital}")
+        positions = kite.positions()
+        current_pnl = sum(
+            position['pnl'] for position in positions['net'] if position['tradingsymbol']
+        )
+
+        return_percentage = (current_pnl / capital) * 100 if capital != 0 else 0
+
+        orders = kite.orders()
+        number_of_orders_punched = len(orders)
+        last_order_time = max(
+            [order['order_timestamp'] for order in orders], default=None
+        )
+        last_order_time = last_order_time.strftime("%Y-%m-%d %H:%M:%S") if last_order_time else "No orders"
+
+        has_unfilled_buy_limit_option = any(
+            order['order_type'] == 'LIMIT' and
+            order['transaction_type'] == 'BUY' and
+            order['product'] == 'NRML' and
+            order['status'] not in ['COMPLETE', 'TRIGGER PENDING']
+            for order in orders
+        )
+
+        formatted_capital = format_indian_number(capital)
+        formatted_available_margin = format_indian_number(available_margin)
+        formatted_used_margin = format_indian_number(used_margin)
+        formatted_current_pnl = format_indian_number(current_pnl)
+
+        if number_of_orders_punched > 100:
+            subject = f"Alert: {user_id} has placed {number_of_orders_punched} orders"
+            body = (f"Client ID: {user_id}\n"
+                    f"Number of Orders Placed: {number_of_orders_punched}\n"
+                    f"Last Order Time: {last_order_time}\n"
+                    f"Available Margin: {formatted_available_margin}\n"
+                    f"Used Margin: {formatted_used_margin}\n"
+                    f"Current PnL: {formatted_current_pnl}\n")
+            # send_email(subject, body)
+
+    except Exception as e:
+        print(f"Error fetching data for client {user_id}: {e}")
+        formatted_capital = formatted_available_margin = formatted_used_margin = formatted_current_pnl = 0
+        number_of_orders_punched = return_percentage = 0
+        last_order_time = "Error fetching"
+        has_unfilled_buy_limit_option = False
+
+    # Return the dictionary wrapped in a Response
+    return Response({
+        "client_id": user_id,
+        "capital": formatted_capital,
+        "available_margin": formatted_available_margin,
+        "used_margin": formatted_used_margin,
+        "current_pnl": formatted_current_pnl,
+        "return (%)": round(return_percentage, 2),
+        "number_of_orders_punched": number_of_orders_punched,
+        "last_order_time": last_order_time,
+        "unfilled_buy_limit_option": has_unfilled_buy_limit_option
+    })
+    
+    
+    
+    
+@api_view(['GET'])
+def fetch_data_for_client5(request):
+    user_id = 'SOE424'
+    file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
+    login = pd.read_csv(file_path)
+    access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
+    api_k_value = login.loc[login['login ID'] == user_id, 'api_k'].values
+    api_s_value = login.loc[login['login ID'] == user_id, 'api_s'].values
+    
+    api_k = api_k_value[0]
+    api_s = api_s_value[0]
+    access_token = access_token_value[0]
+
+    kite = KiteConnect(api_key=api_k)
+    kite.set_access_token(access_token)
+   
+    try:
+        margin_data = kite.margins(segment="equity")
+        available_margin = margin_data['net']
+        used_margin = margin_data['utilised']['exposure'] + margin_data['utilised']['span']
+        capital = int(available_margin + used_margin)
+        print(f"Available Margin: {available_margin}, Used Margin: {used_margin}, Capital: {capital}")
+        positions = kite.positions()
+        current_pnl = sum(
+            position['pnl'] for position in positions['net'] if position['tradingsymbol']
+        )
+
+        return_percentage = (current_pnl / capital) * 100 if capital != 0 else 0
+
+        orders = kite.orders()
+        number_of_orders_punched = len(orders)
+        last_order_time = max(
+            [order['order_timestamp'] for order in orders], default=None
+        )
+        last_order_time = last_order_time.strftime("%Y-%m-%d %H:%M:%S") if last_order_time else "No orders"
+
+        has_unfilled_buy_limit_option = any(
+            order['order_type'] == 'LIMIT' and
+            order['transaction_type'] == 'BUY' and
+            order['product'] == 'NRML' and
+            order['status'] not in ['COMPLETE', 'TRIGGER PENDING']
+            for order in orders
+        )
+
+        formatted_capital = format_indian_number(capital)
+        formatted_available_margin = format_indian_number(available_margin)
+        formatted_used_margin = format_indian_number(used_margin)
+        formatted_current_pnl = format_indian_number(current_pnl)
+
+        if number_of_orders_punched > 100:
+            subject = f"Alert: {user_id} has placed {number_of_orders_punched} orders"
+            body = (f"Client ID: {user_id}\n"
+                    f"Number of Orders Placed: {number_of_orders_punched}\n"
+                    f"Last Order Time: {last_order_time}\n"
+                    f"Available Margin: {formatted_available_margin}\n"
+                    f"Used Margin: {formatted_used_margin}\n"
+                    f"Current PnL: {formatted_current_pnl}\n")
+            # send_email(subject, body)
+
+    except Exception as e:
+        print(f"Error fetching data for client {user_id}: {e}")
+        formatted_capital = formatted_available_margin = formatted_used_margin = formatted_current_pnl = 0
+        number_of_orders_punched = return_percentage = 0
+        last_order_time = "Error fetching"
+        has_unfilled_buy_limit_option = False
+
+    # Return the dictionary wrapped in a Response
+    return Response({
+        "client_id": user_id,
+        "capital": formatted_capital,
+        "available_margin": formatted_available_margin,
+        "used_margin": formatted_used_margin,
+        "current_pnl": formatted_current_pnl,
+        "return (%)": round(return_percentage, 2),
+        "number_of_orders_punched": number_of_orders_punched,
+        "last_order_time": last_order_time,
+        "unfilled_buy_limit_option": has_unfilled_buy_limit_option
+    })
+    
+    
+    
+    
+    
+@api_view(['GET'])
+def fetch_data_for_client6(request):
+    user_id = 'AU4419'
+    file_path = os.path.join(os.getcwd(), 'user', 'data', 'login.csv')
+    login = pd.read_csv(file_path)
+    access_token_value = login.loc[login['login ID'] == user_id, 'access_token'].values
+    api_k_value = login.loc[login['login ID'] == user_id, 'api_k'].values
+    api_s_value = login.loc[login['login ID'] == user_id, 'api_s'].values
+    
+    api_k = api_k_value[0]
+    api_s = api_s_value[0]
+    access_token = access_token_value[0]
+
+    kite = KiteConnect(api_key=api_k)
+    kite.set_access_token(access_token)
+   
+    try:
+        margin_data = kite.margins(segment="equity")
+        available_margin = margin_data['net']
+        used_margin = margin_data['utilised']['exposure'] + margin_data['utilised']['span']
+        capital = int(available_margin + used_margin)
+        print(f"Available Margin: {available_margin}, Used Margin: {used_margin}, Capital: {capital}")
+        positions = kite.positions()
+        current_pnl = sum(
+            position['pnl'] for position in positions['net'] if position['tradingsymbol']
+        )
+
+        return_percentage = (current_pnl / capital) * 100 if capital != 0 else 0
+
+        orders = kite.orders()
+        number_of_orders_punched = len(orders)
+        last_order_time = max(
+            [order['order_timestamp'] for order in orders], default=None
+        )
+        last_order_time = last_order_time.strftime("%Y-%m-%d %H:%M:%S") if last_order_time else "No orders"
+
+        has_unfilled_buy_limit_option = any(
+            order['order_type'] == 'LIMIT' and
+            order['transaction_type'] == 'BUY' and
+            order['product'] == 'NRML' and
+            order['status'] not in ['COMPLETE', 'TRIGGER PENDING']
+            for order in orders
+        )
+
+        formatted_capital = format_indian_number(capital)
+        formatted_available_margin = format_indian_number(available_margin)
+        formatted_used_margin = format_indian_number(used_margin)
+        formatted_current_pnl = format_indian_number(current_pnl)
+
+        if number_of_orders_punched > 100:
+            subject = f"Alert: {user_id} has placed {number_of_orders_punched} orders"
+            body = (f"Client ID: {user_id}\n"
+                    f"Number of Orders Placed: {number_of_orders_punched}\n"
+                    f"Last Order Time: {last_order_time}\n"
+                    f"Available Margin: {formatted_available_margin}\n"
+                    f"Used Margin: {formatted_used_margin}\n"
+                    f"Current PnL: {formatted_current_pnl}\n")
+            # send_email(subject, body)
+
+    except Exception as e:
+        print(f"Error fetching data for client {user_id}: {e}")
+        formatted_capital = formatted_available_margin = formatted_used_margin = formatted_current_pnl = 0
+        number_of_orders_punched = return_percentage = 0
+        last_order_time = "Error fetching"
+        has_unfilled_buy_limit_option = False
+
+    # Return the dictionary wrapped in a Response
+    return Response({
+        "client_id": user_id,
+        "capital": formatted_capital,
+        "available_margin": formatted_available_margin,
+        "used_margin": formatted_used_margin,
+        "current_pnl": formatted_current_pnl,
+        "return (%)": round(return_percentage, 2),
+        "number_of_orders_punched": number_of_orders_punched,
+        "last_order_time": last_order_time,
+        "unfilled_buy_limit_option": has_unfilled_buy_limit_option
+    })                
+    
+    
+@api_view(['GET'])
+def fetch_data_for_all_clients(request):
+    # Define the user IDs and directly specify the URLs
+    urls = [
+        'django-backend1.azurewebsites.net/user/EC2853',
+        'django-backend1.azurewebsites.net/user/ZZ4237',
+        'django-backend1.azurewebsites.net/user/MI5008',
+        'django-backend1.azurewebsites.net/user/WP7621',
+        'django-backend1.azurewebsites.net/user/SOE424',
+        'django-backend1.azurewebsites.net/user/AU4419'
+    ]
+
+    # Use a ThreadPoolExecutor to fetch data concurrently from each URL
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Directly pass the list of URLs in the executor.map() call
+        results = list(executor.map(requests.get, urls))
+
+    # Parse the JSON response from each request
+    client_data = [result.json() for result in results]
+
+    # Format the data in the specified structure
+    formatted_data = []
+    for client in client_data:
+        formatted_data.append({
+            "user_id": client.get("client_id"),
+            "margin": client.get("available_margin", "No data available"),
+            "used_margin": client.get("used_margin", "No data available"),
+            "capital": client.get("capital", "No data available"),
+            "broker_name": "Broker Name Placeholder",  # You can replace this with actual data if available
+            "return_percentage": client.get("return (%)", "No data available"),
+            "number_of_orders_pinched": client.get("number_of_orders_punched", "No data available"),
+            "last_order_time": client.get("last_order_time", "No data available"),
+            "unfilled_buy_limit_option": client.get("unfilled_buy_limit_option", "No data available"),
+            "running_m2m": "Running M2M Placeholder",  # Replace with actual data if available
+        })
+
+    # Return the formatted data as an array of objects
+    return Response(formatted_data)
+    
