@@ -119,8 +119,8 @@ def get_all_clients_data(request):
 def fetch_data_for_all_clients(request):
     # Define the user IDs and directly specify the URLs
     urls = [
-        'https://django-backend1.azurewebsites.net/user/EC2853',
-        'https://django-backend1.azurewebsites.net/user/ZZ4237'
+        'http://localhost:8000/user/EC2853',
+        'http://localhost:8000/user/ZZ4237'
     ]
 
     # Use a ThreadPoolExecutor to fetch data concurrently from each URL
